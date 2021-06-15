@@ -22,8 +22,8 @@ try-require:
   - ./readme.go.md
   - ./readme.typescript.md
 
-use-extension:
-  "@autorest/modelerfour": 4.15.421
+# use-extension:
+  # "@autorest/modelerfour": 4.15.421
   # "@autorest/typescript": "1.0.0-beta.1"
   # "@autorest/typescript": "C:\\ZZ\\projects\\codegen\\autorest.typescript"
   # "@microsoft.azure/autorest.modeler": "2.3.38"
@@ -35,8 +35,8 @@ pipeline:
         # input: modelerfour/new-transform
         # input: swagger-document/loader-swagger
         # input: typescript
-        input: modelerfour/identity
-        # input: go/transform
+        # input: modelerfour/identity
+        input: go-transform
         # input: go/text-transform
         output-artifact: source-file
     tests/emitter:
@@ -55,4 +55,18 @@ scope-tests/emitter:
 
   output-artifact:
     - source-file
+```
+
+``` yaml $(csharp)
+
+try-require:
+  - ./readme.csharp.md
+
+use-extension:
+  "@autorest/csharp": 3.0.0-beta.20210614.2
+
+pipeline:
+    test-modeler:
+        input: csharpgen
+        output-artifact: source-file
 ```

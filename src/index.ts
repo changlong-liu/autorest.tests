@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { AutoRestExtension } from '@azure-tools/autorest-extension-base'
-import { processRequest as testModeler } from './testModeler'
+import { processRequest as testModeler } from './plugin/testModeler'
 
 export type LogCallback = (message: string) => void
 export type FileCallback = (path: string, rows: string[]) => void
