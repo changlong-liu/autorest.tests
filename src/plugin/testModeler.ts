@@ -3,8 +3,13 @@
  *  Licensed under the MIT License. See License.txt in the project root for license output.pushrmation.
  *--------------------------------------------------------------------------------------------*/
 
-import { CodeModel, Example, Parameter, codeModelSchema } from '@azure-tools/codemodel'
-import { ExampleModel, ExtensionName } from '../model/testModel'
+import { CodeModel, ImplementationLocation, codeModelSchema } from '@azure-tools/codemodel'
+import {
+    ExampleExtension,
+    ExampleModel,
+    ExampleParameterModel,
+    ExtensionName
+} from '../model/testModel'
 import { Helper } from '../util/helper'
 import { Host, startSession } from '@azure-tools/autorest-extension-base'
 
@@ -14,7 +19,8 @@ export async function processRequest(host: Host): Promise<void> {
     const codemodel = await session.readFile('code-model-v4.yaml')
     const model = session.model
     await AddTestModel(session.model)
-    Helper.outputToModelerfour(host, session)
+    await Helper.outputToModelerfour(host, session)
+    await Helper.dumpCodeModel(host, session, 'test-modeler.yaml')
 }
 
 async function AddTestModel(codeModel: CodeModel) {
@@ -23,9 +29,23 @@ async function AddTestModel(codeModel: CodeModel) {
             for (const [exampleName, rawValue] of Object.entries(
                 operation.extensions?.[ExtensionName.xMsExamples] ?? {}
             )) {
+                const parametersInExample = (rawValue as ExampleExtension).parameters
                 const exampleModel = new ExampleModel(exampleName, operation)
                 for (const parameter of Helper.allParameters(operation)) {
                     const dotPath = Helper.getFlattenedNames(parameter).join('.')
+                    if (Helper.isPathDefined(parametersInExample, dotPath)) {
+                        const exampleParameter = new ExampleParameterModel(
+                            parameter,
+                            parametersInExample[dotPath]
+                        )
+                        if (parameter.implementation == ImplementationLocation.Method) {
+                            exampleModel.methodParameters.push(exampleParameter)
+                        } else if (parameter.implementation == ImplementationLocation.Client) {
+                            exampleModel.clientParameters.push(exampleParameter)
+                        } else {
+                            //
+                        }
+                    }
                 }
 
                 operation.extensions[ExtensionName.xMsExampleModels] =
@@ -35,5 +55,3 @@ async function AddTestModel(codeModel: CodeModel) {
         })
     })
 }
-
-async function CreateParameterModel(type: Parameter, value: any) {}

@@ -50,6 +50,14 @@ export class Helper {
         }
     }
 
+    public static async dumpCodeModel(
+        host: Host,
+        session: Session<CodeModel>,
+        fileName: string
+    ): Promise<void> {
+        host.WriteFile(fileName, serialize(session.model), undefined)
+    }
+
     public static allParameters(operation: Operation) {
         const ret: Parameter[] = []
         if (operation.parameters) {
@@ -61,13 +69,20 @@ export class Helper {
         return ret
     }
 
+    public static getParameterSerializedName(parameter: Parameter) {
+        return (
+            parameter?.language?.default?.['serializedName'] ||
+            parameter?.language?.default?.['name']
+        )
+    }
+
     public static getFlattenedNames(parameter: Parameter) {
         let ret = undefined
         if (isVirtualParameter(parameter)) {
             ret = (parameter as VirtualParameter).targetProperty.flattenedNames
         }
         if (!ret) {
-            ret = [parameter.language.default.name]
+            ret = [this.getParameterSerializedName(parameter)]
         }
         return ret
     }
