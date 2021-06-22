@@ -3,11 +3,18 @@
  *  Licensed under the MIT License. See License.txt in the project root for license output.pushrmation.
  *--------------------------------------------------------------------------------------------*/
 
-import { CodeModel, ImplementationLocation, codeModelSchema } from '@azure-tools/codemodel'
+import {
+    CodeModel,
+    ImplementationLocation,
+    SchemaResponse,
+    codeModelSchema
+} from '@azure-tools/codemodel'
 import {
     ExampleExtension,
+    ExampleExtensionResponse,
     ExampleModel,
     ExampleParameter,
+    ExampleResponse,
     ExtensionName,
     TestGroup,
     TestModel,
@@ -35,7 +42,8 @@ async function genExampleModels(codeModel: CodeModel) {
             for (const [exampleName, rawValue] of Object.entries(
                 operation.extensions?.[ExtensionName.xMsExamples] ?? {}
             )) {
-                const parametersInExample = (rawValue as ExampleExtension).parameters
+                const exampleExtension = rawValue as ExampleExtension
+                const parametersInExample = exampleExtension.parameters
                 const exampleModel = new ExampleModel(exampleName, operation)
                 for (const parameter of Helper.allParameters(operation)) {
                     const dotPath = Helper.getFlattenedNames(parameter).join('.')
@@ -52,6 +60,16 @@ async function genExampleModels(codeModel: CodeModel) {
                             //
                         }
                     }
+                }
+
+                for (const [statusCode, response] of Object.entries(exampleExtension.responses)) {
+                    const exampleExtensionResponse = response as ExampleExtensionResponse
+                    const schemaResponse = operation.responses[0] as SchemaResponse
+                    exampleModel.responses[statusCode] = ExampleResponse.createInstance(
+                        exampleExtensionResponse,
+                        schemaResponse.schema,
+                        schemaResponse.language
+                    )
                 }
 
                 operation.extensions[ExtensionName.xMsExampleModels] =

@@ -5,6 +5,7 @@ import {
     ChoiceSchema,
     ChoiceValue,
     CodeModel,
+    ComplexSchema,
     ConstantSchema,
     DictionarySchema,
     ObjectSchema,
@@ -15,7 +16,6 @@ import {
     Schema,
     SchemaType,
     SealedChoiceSchema,
-    StringSchema,
     VirtualParameter,
     codeModelSchema,
     isVirtualParameter
@@ -94,5 +94,36 @@ export class Helper {
 
     public static getPathValue(object: any, dotPath: string): any {
         return _.get(object, dotPath)
+    }
+
+    public static findInDescents(schema: ObjectSchema, value: Record<string, any>): ComplexSchema {
+        if (schema.discriminator) {
+            const discriminatorKey = schema.discriminator.property.serializedName
+            if (
+                Object.prototype.hasOwnProperty.call(value, discriminatorKey) &&
+                Object.prototype.hasOwnProperty.call(
+                    schema.discriminator.all,
+                    value[discriminatorKey]
+                )
+            ) {
+                return schema.discriminator.all[value[discriminatorKey]]
+            }
+        }
+
+        //TODO: find most matched child by properties if no discriminator
+        return schema
+    }
+
+    public static getAllProperties(schema: ComplexSchema): Array<Property> {
+        const ret: Array<Property> = []
+        if (Object.prototype.hasOwnProperty.call(schema, 'properties')) {
+            ret.push(...(schema as ObjectSchema).properties)
+        }
+        if (Object.prototype.hasOwnProperty.call(schema, 'parents')) {
+            for (const parent of (schema as ObjectSchema).parents.immediate) {
+                ret.push(...this.getAllProperties(parent))
+            }
+        }
+        return ret
     }
 }
