@@ -18,7 +18,7 @@ export interface ExampleExtension {
     responses?: Record<string, any>
 }
 
-export class ExampleValueModel {
+export class ExampleValue {
     language: Languages
     schema: Schema
     value: any
@@ -33,12 +33,8 @@ export class ExampleValueModel {
         this.value = value
     }
 
-    public static createInstance(
-        rawValue: any,
-        schema: Schema,
-        language: Languages
-    ): ExampleValueModel {
-        const instance = new ExampleValueModel(rawValue, schema, language)
+    public static createInstance(rawValue: any, schema: Schema, language: Languages): ExampleValue {
+        const instance = new ExampleValue(rawValue, schema, language)
         if (!schema) {
             // keep raw value
         } else if (schema.type === SchemaType.Array && Array.isArray(rawValue)) {
@@ -61,15 +57,15 @@ export class ExampleValueModel {
     }
 }
 
-export class ExampleParameterModel {
+export class ExampleParameter {
     /** Ref to the Parameter of operations in codeModel */
     parameter: Parameter
     /** Can be object, list, primitive data, ParameterModel*/
-    exampleValue: ExampleValueModel
+    exampleValue: ExampleValue
 
     public constructor(parameter: Parameter, rawValue: any) {
         this.parameter = parameter
-        this.exampleValue = ExampleValueModel.createInstance(
+        this.exampleValue = ExampleValue.createInstance(
             rawValue,
             parameter?.schema,
             parameter.language
@@ -82,8 +78,8 @@ export class ExampleModel {
     name: string
 
     operation: Operation
-    clientParameters: Array<ExampleParameterModel>
-    methodParameters: Array<ExampleParameterModel>
+    clientParameters: Array<ExampleParameter>
+    methodParameters: Array<ExampleParameter>
 
     public constructor(name: string, operation: Operation) {
         this.name = name
@@ -92,12 +88,28 @@ export class ExampleModel {
     }
 }
 
-export class ScenarioModel {
+/**
+ * Generally a test group should be generated into one test source file.
+ */
+export class TestGroup {
     name: string
-    examples: Array<ExampleModel>
+    properties: Record<string, any> = {} //TODO: setup, cleanup, env
+    scenarios: Array<TestScenario> = []
+    public constructor(name: string) {
+        this.name = name
+    }
 }
 
-export interface RawExample {
+export class TestScenario {
     name: string
-    examples: Array<ExampleModel>
+    properties: Record<string, any> = {} //TODO: setup, cleanup, env
+    examples: Array<ExampleModel> = []
+    public constructor(name: string) {
+        this.name = name
+    }
+}
+
+export class TestModel {
+    mockTests: Array<TestGroup> = []
+    scenarioTests: Array<TestGroup> = []
 }
