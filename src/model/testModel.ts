@@ -4,6 +4,7 @@ import {
     Languages,
     ObjectSchema,
     Operation,
+    OperationGroup,
     Parameter,
     Schema,
     SchemaType
@@ -104,15 +105,16 @@ export class ExampleResponse {
 export class ExampleModel {
     /** Key in x-ms-examples */
     name: string
-
+    operationGroup: OperationGroup
     operation: Operation
     clientParameters: Array<ExampleParameter> = []
     methodParameters: Array<ExampleParameter> = []
     responses: Record<string, ExampleResponse> = {} // statusCode-->ExampleResponse
 
-    public constructor(name: string, operation: Operation) {
+    public constructor(name: string, operation: Operation, operationGroup: OperationGroup) {
         this.name = name
         this.operation = operation
+        this.operationGroup = operationGroup
     }
 }
 

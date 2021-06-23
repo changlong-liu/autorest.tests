@@ -44,7 +44,7 @@ async function genExampleModels(codeModel: CodeModel) {
             )) {
                 const exampleExtension = rawValue as ExampleExtension
                 const parametersInExample = exampleExtension.parameters
-                const exampleModel = new ExampleModel(exampleName, operation)
+                const exampleModel = new ExampleModel(exampleName, operation, operationGroup)
                 for (const parameter of Helper.allParameters(operation)) {
                     const dotPath = Helper.getFlattenedNames(parameter).join('.')
                     if (Helper.isPathDefined(parametersInExample, dotPath)) {
