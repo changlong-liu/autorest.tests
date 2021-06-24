@@ -3,27 +3,36 @@ package {{packageName}}
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	// "github.com/Azure/azure-sdk-for-go/sdk/to"
+	"golang.org/x/net/http2"
+	// "golang.org/x/oauth2"
+)
+
+const (
+	mockHost = "https://localhost:8443"
 )
 
 var (
 	ctx            context.Context
 	subscriptionId string
-	cred           *azidentity.ChainedTokenCredential
+	cred           *azidentity.EnvironmentCredential
 	err            error
 	con            *armcore.Connection
 )
 
 func TestAbs(t *testing.T) {
-
-	fmt.Print(con)
-
-	//extensionsClient := NewExtensionsClient(conn, "")
+	client := NewExtensionsClient(con, subscriptionId)
+	_, err := client.Create(ctx, "ssss", "sss", "ddd", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestMain will exec each test
@@ -35,14 +44,31 @@ func TestMain(m *testing.M) {
 }
 
 func setUp() {
-	cred, err = azidentity.NewDefaultAzureCredential(nil)
+	ctx = context.Background()
+	subscriptionId = os.Getenv("SUBSCRIPTION_ID")
+
+	tr := &http.Transport{}
+	if err := http2.ConfigureTransport(tr); err != nil {
+		fmt.Printf("Failed to configure http2 transport: %v", err)
+	}
+	tr.TLSClientConfig.InsecureSkipVerify = true
+	client := &http.Client{Transport: tr}
+	cred, err = azidentity.NewEnvironmentCredential(&azidentity.EnvironmentCredentialOptions{AuthorityHost: mockHost, HTTPClient: client})
 	if err != nil {
 		panic(err)
 	}
-	con = armcore.NewDefaultConnection(cred, &armcore.ConnectionOptions{
+	
+	// tr = &http.Transport{}
+	// if err := http2.ConfigureTransport(tr); err != nil {
+	// 	fmt.Printf("Failed to configure http2 transport: %v", err)
+	// }
+	// tr.TLSClientConfig.InsecureSkipVerify = true
+	// client = &http.Client{Transport: tr}
+	con = armcore.NewConnection(mockHost, cred, &armcore.ConnectionOptions{
 		Logging: azcore.LogOptions{
 			IncludeBody: true,
 		},
+		HTTPClient: client,
 	})
 }
 

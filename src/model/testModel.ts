@@ -29,6 +29,7 @@ export class ExampleValue {
     language: Languages
     schema: Schema
     value: any
+    parentsValue: Record<string, any> // parent class Name--> value
 
     public constructor(
         value: any = undefined,
@@ -64,6 +65,13 @@ export class ExampleValue {
                         property.schema,
                         property.language
                     )
+                }
+            }
+
+            instance.parentsValue = {}
+            if (Object.prototype.hasOwnProperty.call(childSchema, 'parents')) {
+                for (const parent of (schema as ObjectSchema).parents.immediate) {
+                    ret.push(...this.getAllProperties(parent))
                 }
             }
         }
