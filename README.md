@@ -4,9 +4,9 @@ Generate *.md config files in Azure REST API specification:
 
 https://github.com/Azure/azure-rest-api-specs
 
-## How to Generate Python Test
+## How to Generate Test (TODO)
 
-    autorest --use=autorest-tests@latest /azure-rest-api-specs/specification/storageimportexport/resource-manager/readme.md  --resource-file=./samples/sampleResource.json
+    autorest .. 
 
 ``` yaml
 
@@ -38,10 +38,20 @@ pipeline:
         # input: modelerfour/identity
         input: go-transform
         # input: go/text-transform
-        output-artifact: source-file
-    tests/emitter:
+        output-artifact: source-file-test-modeler
+    go-tester:
         input: test-modeler
+        output-artifact: source-file-go-tester
+    tests/emitter:
+        input: 
+            - test-modeler
+            - go-tester
         scope: scope-tests/emitter
+    # go/emitter:
+    #     input: 
+    #         - test-modeler
+    #         - go-tester
+
 
 # modelerfour:
 #     lenient-model-deduplication: true
@@ -50,11 +60,12 @@ pipeline:
 #     flatten-payloads: true
 
 scope-tests/emitter:
-  input-artifact: source-file
+  input-artifact:
+      - source-file-test-modeler
+      - source-file-go-tester
   output-uri-expr: $key
 
-  output-artifact:
-    - source-file
+  output-artifact: source-file-go-tester
 ```
 
 ``` yaml $(csharp)
@@ -63,10 +74,14 @@ try-require:
   - ./readme.csharp.md
 
 use-extension:
-  "@autorest/csharp": 3.0.0-beta.20210614.2
+  # "@autorest/csharp": 3.0.0-beta.20210614.2
+  "@autorest/csharp": 3.0.0-beta.20210210.4
 
 pipeline:
     test-modeler:
         input: csharpgen
         output-artifact: source-file
+    csharpgen/emitter:
+        input: test-modeler
+        scope: source-file
 ```

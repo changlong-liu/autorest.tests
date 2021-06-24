@@ -1,5 +1,6 @@
 import {
     ArraySchema,
+    CodeModel,
     ComplexSchema,
     Languages,
     ObjectSchema,
@@ -142,4 +143,8 @@ export class TestScenario {
 export class TestModel {
     mockTests: Array<TestGroup> = []
     scenarioTests: Array<TestGroup> = []
+}
+
+export interface TestCodeModel extends CodeModel {
+    testModel: TestModel
 }

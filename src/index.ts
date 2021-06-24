@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { AutoRestExtension } from '@azure-tools/autorest-extension-base'
+import { processRequest as goTester } from './plugin/goTester'
 import { processRequest as testModeler } from './plugin/testModeler'
 
 export type LogCallback = (message: string) => void
@@ -12,5 +13,6 @@ export type FileCallback = (path: string, rows: string[]) => void
 const extension = new AutoRestExtension()
 
 extension.Add('test-modeler', testModeler)
+extension.Add('go-tester', goTester)
 
 extension.Run()

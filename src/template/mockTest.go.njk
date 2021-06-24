@@ -1,0 +1,51 @@
+package {{packageName}}
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+)
+
+var (
+	ctx            context.Context
+	subscriptionId string
+	cred           *azidentity.ChainedTokenCredential
+	err            error
+	con            *armcore.Connection
+)
+
+func TestAbs(t *testing.T) {
+
+	fmt.Print(con)
+
+	//extensionsClient := NewExtensionsClient(conn, "")
+}
+
+// TestMain will exec each test
+func TestMain(m *testing.M) {
+	setUp()
+	retCode := m.Run() // exec test and this returns an exit code to pass to os
+	tearDown()
+	os.Exit(retCode)
+}
+
+func setUp() {
+	cred, err = azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		panic(err)
+	}
+	con = armcore.NewDefaultConnection(cred, &armcore.ConnectionOptions{
+		Logging: azcore.LogOptions{
+			IncludeBody: true,
+		},
+	})
+}
+
+func tearDown() {
+
+}
