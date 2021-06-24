@@ -36,7 +36,7 @@ export async function processRequest(host: Host): Promise<void> {
 
 async function GenerateMockTest(codeModel: TestCodeModel, config: Record<string, any>) {
     //Prepare for render data as GoTestData
-    const data = new GoTestData()
+    const data = codeModel.testModel.mockTests[0] as GoTestData
 
     // Render to template
     const tmplPath = path.relative(
