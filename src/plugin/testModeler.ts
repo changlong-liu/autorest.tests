@@ -84,13 +84,15 @@ async function genMockTests(codeModel: CodeModel, testModel: TestModel) {
     const testGroup = new TestGroup('mock')
     codeModel.operationGroups.forEach((operationGroup) => {
         operationGroup.operations.forEach((operation) => {
-            for (const [exampleName, exampleModel] of Object.entries(
+            const testScenario = new TestScenario(
+                operationGroup.language.default.name + '_' + operation.language.default.name
+            )
+            for (const [_, exampleModel] of Object.entries(
                 operation.extensions?.[ExtensionName.xMsExampleModels] ?? {}
             )) {
-                const testScenario = new TestScenario(exampleName)
                 testScenario.examples.push(exampleModel as ExampleModel)
-                testGroup.scenarios.push(testScenario)
             }
+            testGroup.scenarios.push(testScenario)
         })
     })
     testModel.mockTests.push(testGroup)

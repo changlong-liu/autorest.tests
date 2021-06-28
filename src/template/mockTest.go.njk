@@ -10,9 +10,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	// "github.com/Azure/azure-sdk-for-go/sdk/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/to"
 	"golang.org/x/net/http2"
-	// "golang.org/x/oauth2"
 )
 
 const (
@@ -27,13 +26,22 @@ var (
 	con            *armcore.Connection
 )
 
-func TestAbs(t *testing.T) {
-	client := NewExtensionsClient(con, subscriptionId)
-	_, err := client.Create(ctx, "ssss", "sss", "ddd", nil)
+{% for scenario in scenarios %}
+func Test{{scenario.name}}(t *testing.T) {
+{% for example in scenario.examples %}
+    // From example {{example.name}}
+	client := New{{example.operationGroup.language.go.name}}Client({{example.clientParametersOutput}})
+	{%- if example.returnInfo.length == 2 %}
+	_, err := client.{{example.operation.language.go.name}}({{example.methodParametersOutput}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	{%- else %}
+	client.{{example.operation.language.go.name}}({{example.methodParametersOutput}})
+	{%- endif %}
+{% endfor %}
 }
+{% endfor %}
 
 // TestMain will exec each test
 func TestMain(m *testing.M) {

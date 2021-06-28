@@ -2,6 +2,7 @@ import {
     ArraySchema,
     CodeModel,
     ComplexSchema,
+    DictionarySchema,
     Languages,
     ObjectSchema,
     Operation,
@@ -28,8 +29,9 @@ export interface ExampleExtension {
 export class ExampleValue {
     language: Languages
     schema: Schema
+    /**The value is {string:ExampleValue}/[ExampleValue] instance if schema.type==Object/Array, otherwise it's rawValue */
     value: any
-    parentsValue: Record<string, any> = {} // parent class Name--> value
+    parentsValue?: Record<string, ExampleValue> // parent class Name--> value
 
     public constructor(
         value: any = undefined,
@@ -72,7 +74,7 @@ export class ExampleValue {
             if (Object.prototype.hasOwnProperty.call(childSchema, 'parents')) {
                 for (const parent of (schema as ObjectSchema).parents.immediate) {
                     if (schema.type === SchemaType.Object) {
-                        const parentValue = this.createInstance(rawValue, parent, undefined)
+                        const parentValue = this.createInstance(rawValue, parent, parent.language)
                         if (
                             Object.keys(parentValue.value).length !== 0 ||
                             Object.keys(parentValue.parentsValue).length !== 0
@@ -85,6 +87,15 @@ export class ExampleValue {
                         )
                     }
                 }
+            }
+        } else if (schema.type === SchemaType.Dictionary && rawValue === Object(rawValue)) {
+            instance.value = {}
+            for (const [key, value] of Object.entries(rawValue)) {
+                instance.value[key] = this.createInstance(
+                    value,
+                    (<DictionarySchema>schema).elementType,
+                    undefined
+                )
             }
         }
         return instance
