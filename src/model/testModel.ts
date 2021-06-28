@@ -29,7 +29,7 @@ export class ExampleValue {
     language: Languages
     schema: Schema
     value: any
-    parentsValue: Record<string, any> // parent class Name--> value
+    parentsValue: Record<string, any> = {} // parent class Name--> value
 
     public constructor(
         value: any = undefined,
@@ -71,7 +71,19 @@ export class ExampleValue {
             instance.parentsValue = {}
             if (Object.prototype.hasOwnProperty.call(childSchema, 'parents')) {
                 for (const parent of (schema as ObjectSchema).parents.immediate) {
-                    ret.push(...this.getAllProperties(parent))
+                    if (schema.type === SchemaType.Object) {
+                        const parentValue = this.createInstance(rawValue, parent, undefined)
+                        if (
+                            Object.keys(parentValue.value).length !== 0 ||
+                            Object.keys(parentValue.parentsValue).length !== 0
+                        ) {
+                            instance.parentsValue[parent.language.default.name] = parentValue
+                        }
+                    } else {
+                        console.warn(
+                            `${parent.language.default.name} is NOT a object type of parent of ${childSchema.language.default.name}!`
+                        )
+                    }
                 }
             }
         }

@@ -114,23 +114,7 @@ export class Helper {
         return schema
     }
 
-    public static getAllProperties(schema: ComplexSchema): Array<Property> {
-        const ret: Array<Property> = []
-        if (Object.prototype.hasOwnProperty.call(schema, 'properties')) {
-            ret.push(...(schema as ObjectSchema).properties)
-        }
-        if (Object.prototype.hasOwnProperty.call(schema, 'parents')) {
-            for (const parent of (schema as ObjectSchema).parents.immediate) {
-                ret.push(...this.getAllProperties(parent))
-            }
-        }
-        return ret
-    }
-
-    public static constructParentExampleValue(
-        schema: ComplexSchema,
-        value: Record<string, any>
-    ): Record<string, any> {
+    public static getAllProperties(schema: ComplexSchema, withParents = false): Array<Property> {
         const ret: Array<Property> = []
         if (Object.prototype.hasOwnProperty.call(schema, 'properties')) {
             ret.push(...(schema as ObjectSchema).properties)
