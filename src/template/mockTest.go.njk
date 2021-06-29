@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -30,14 +31,17 @@ var (
 func Test{{scenario.name}}(t *testing.T) {
 {% for example in scenario.examples %}
     // From example {{example.name}}
+	{%- if loop.first %}
+	defer func() { recover() }()
 	client := New{{example.operationGroup.language.go.name}}Client({{example.clientParametersOutput}})
+	{%- endif %}
 	{%- if example.returnInfo.length == 2 %}
-	_, err := client.{{example.operation.language.go.name}}({{example.methodParametersOutput}})
+	_, err {% if loop.first %}:{% endif %}= client.{{example.opName}}({{example.methodParametersOutput}})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	{%- else %}
-	client.{{example.operation.language.go.name}}({{example.methodParametersOutput}})
+	client.{{example.opName}}({{example.methodParametersOutput}})
 	{%- endif %}
 {% endfor %}
 }
@@ -65,13 +69,7 @@ func setUp() {
 	if err != nil {
 		panic(err)
 	}
-	
-	// tr = &http.Transport{}
-	// if err := http2.ConfigureTransport(tr); err != nil {
-	// 	fmt.Printf("Failed to configure http2 transport: %v", err)
-	// }
-	// tr.TLSClientConfig.InsecureSkipVerify = true
-	// client = &http.Client{Transport: tr}
+
 	con = armcore.NewConnection(mockHost, cred, &armcore.ConnectionOptions{
 		Logging: azcore.LogOptions{
 			IncludeBody: true,

@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { AutoRestExtension } from '@azure-tools/autorest-extension-base'
+import { processRequest as goLinter } from './plugin/goLinter'
 import { processRequest as goTester } from './plugin/goTester'
 import { processRequest as testModeler } from './plugin/testModeler'
 
@@ -14,5 +15,6 @@ const extension = new AutoRestExtension()
 
 extension.Add('test-modeler', testModeler)
 extension.Add('go-tester', goTester)
+extension.Add('go-linter', goLinter)
 
 extension.Run()

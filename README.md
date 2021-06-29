@@ -47,6 +47,9 @@ pipeline:
             - test-modeler
             - go-tester
         scope: scope-tests/emitter
+    go-linter:
+        input:
+            - tests/emitter
     # go/emitter:
     #     input: 
     #         - test-modeler

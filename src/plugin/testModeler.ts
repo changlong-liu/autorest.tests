@@ -25,9 +25,8 @@ import { Host, startSession } from '@azure-tools/autorest-extension-base'
 
 export async function processRequest(host: Host): Promise<void> {
     const session = await startSession<CodeModel>(host, {}, codeModelSchema)
-    const files = await session.listInputs()
-    const codemodel = await session.readFile('code-model-v4.yaml')
-    const model = session.model
+    // const files = await session.listInputs()
+    // const codemodel = await session.readFile('code-model-v4.yaml')
     await genExampleModels(session.model)
     const testModel = new TestModel()
     await genMockTests(session.model, testModel)

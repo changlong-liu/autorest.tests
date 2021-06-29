@@ -119,11 +119,29 @@ export class Helper {
         if (Object.prototype.hasOwnProperty.call(schema, 'properties')) {
             ret.push(...(schema as ObjectSchema).properties)
         }
-        if (Object.prototype.hasOwnProperty.call(schema, 'parents')) {
+        if (withParents && Object.prototype.hasOwnProperty.call(schema, 'parents')) {
             for (const parent of (schema as ObjectSchema).parents.immediate) {
                 ret.push(...this.getAllProperties(parent))
             }
         }
         return ret
+    }
+
+    public static escapeString(str: string): string {
+        return str.split('\\').join('\\\\').split('"').join('\\"')
+    }
+
+    public static findChoiceValue(schema: ChoiceSchema, rawValue: any) {
+        for (const choiceValue of schema.choices) {
+            if (choiceValue.value == rawValue) {
+                return choiceValue
+            }
+        }
+
+        if (schema.choices?.length > 0) {
+            console.warn(`${rawValue} is NOT a valid ${schema.language.default.name} value`)
+            return schema.choices[0]
+        }
+        throw `${schema.language.default.name} has no choices!`
     }
 }

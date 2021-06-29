@@ -6,6 +6,8 @@
 import * as nunjucks from 'nunjucks'
 import * as path from 'path'
 import {
+    ArraySchema,
+    ChoiceSchema,
     CodeModel,
     DictionarySchema,
     ImplementationLocation,
@@ -16,6 +18,7 @@ import {
     Schema,
     SchemaResponse,
     SchemaType,
+    SealedChoiceSchema,
     codeModelSchema
 } from '@azure-tools/codemodel'
 import {
@@ -54,7 +57,7 @@ export async function processRequest(host: Host): Promise<void> {
     const generator = await new TestGenerator(host, session.model, config)
     await generator.GenerateMockTest()
     await Helper.outputToModelerfour(host, session)
-    // await Helper.dumpCodeModel(host, session, 'test-modeler.yaml')
+    await Helper.dumpCodeModel(host, session, 'go-tester.yaml')
 }
 
 class GoTestData extends TestGroup {
@@ -196,13 +199,13 @@ class TestGenerator {
                             if (this.GetLanguageName(methodParameter.parameter) == paramName) {
                                 return this.ExampleValueToString(
                                     methodParameter.exampleValue,
-                                    false
+                                    !methodParameter.parameter.required
                                 )
                             }
                         }
                         return 'nil'
                     })
-                    .join(', ')
+                    .join(',\n')
                 example.clientParametersOutput = getClientParametersSig(
                     example.operationGroup,
                     new ImportManager()
@@ -215,13 +218,13 @@ class TestGenerator {
                             if (this.GetLanguageName(clientParameter.parameter) == paramName) {
                                 return this.ExampleValueToString(
                                     clientParameter.exampleValue,
-                                    false
+                                    !clientParameter.parameter.required
                                 )
                             }
                         }
                         return 'nil'
                     })
-                    .join(', ')
+                    .join(',\n')
                 example.returnInfo = generateReturnsInfo(op, 'op')
             }
         }
@@ -231,74 +234,89 @@ class TestGenerator {
         return (meta as Metadata).language.go.name
     }
 
-    public ExampleValueToString(exampleValue: ExampleValue, isPtr): string {
+    public ExampleValueToString(exampleValue: ExampleValue, isPtr: boolean | undefined): string {
+        const ptr = exampleValue.language?.go?.byValue || isPtr === false ? '' : '&'
         if (exampleValue.schema?.type === SchemaType.Array) {
+            const elementPtr = exampleValue.schema.language.go.elementIsPtr ? '*' : ''
             return (
-                '[' +
+                `${ptr}[]${elementPtr}${this.GetLanguageName(
+                    (exampleValue.schema as ArraySchema).elementType
+                )}{\n` +
                 (exampleValue.value as any[])
                     .map((x) =>
                         this.ExampleValueToString(x, exampleValue.schema.language.go.elementIsPtr)
                     )
-                    .join(', ') +
-                ']'
+                    .join(',\n') +
+                '}'
             )
         } else if (exampleValue.schema?.type === SchemaType.Object) {
             let output = ''
-            output += `${this.GetLanguageName(exampleValue.schema)}{`
+            output += `${ptr}${this.GetLanguageName(exampleValue.schema)}{\n`
             for (const [_, parentValue] of Object.entries(exampleValue.parentsValue)) {
                 output += `${this.GetLanguageName(parentValue)}: ${this.ExampleValueToString(
                     parentValue,
                     false
-                )},`
+                )},\n`
             }
             for (const [_, value] of Object.entries(exampleValue.value)) {
                 output += `${this.GetLanguageName(value)}: ${this.ExampleValueToString(
                     value as ExampleValue,
-                    false
-                )},`
+                    undefined
+                )},\n`
             }
             output += '}'
             return output
         } else if (exampleValue.schema?.type === SchemaType.Dictionary) {
-            let output = `map[string]${exampleValue.schema.language.go.elementIsPtr ? '*' : ''}${
-                (exampleValue.schema as DictionarySchema).elementType.language.go.name
-            }{`
+            let output = `${ptr}map[string]${
+                exampleValue.schema.language.go.elementIsPtr ? '*' : ''
+            }${(exampleValue.schema as DictionarySchema).elementType.language.go.name}{\n`
             for (const [key, value] of Object.entries(exampleValue.value)) {
                 output += `"${key}": ${this.ExampleValueToString(
                     value as ExampleValue,
                     exampleValue.schema.language.go.elementIsPtr
-                )},`
+                )},\n`
             }
             output += '}'
             return output
         }
-        return this.RawValueToString(exampleValue.value, exampleValue.schema, isPtr)
+        return this.RawValueToString(
+            exampleValue.value,
+            exampleValue.schema,
+            isPtr === undefined ? !exampleValue.language.go.byValue : isPtr
+        )
     }
 
     public RawValueToString(rawValue: any, schema: Schema, isPtr: boolean): string {
-        let ret = rawValue
+        let ret = JSON.stringify(rawValue)
+        if (Object.getPrototypeOf(rawValue) === Object.prototype) ret = '`' + ret + '`'
         const goType = this.GetLanguageName(schema)
+        if ([SchemaType.Choice, SchemaType.SealedChoice].indexOf(schema.type) >= 0) {
+            const choiceValue = Helper.findChoiceValue(schema as ChoiceSchema, rawValue)
+            ret = this.GetLanguageName(choiceValue)
+        }
         if (schema.type === SchemaType.Constant || goType === 'string') {
-            ret = `"${rawValue}"`
+            ret = `"${Helper.escapeString(rawValue)}"`
         } else if (goType === 'time.Time') {
-            ret = `time.Parse(time.RFC3339, "${rawValue}")`
+            ret = `func() time.Time { t, _ := time.Parse(time.RFC3339, "${rawValue}"); return t}()`
         }
 
         if (isPtr) {
             if (schema.type === SchemaType.Constant) {
                 ret = `to.StringPtr(${ret})`
+            } else if ([SchemaType.Choice, SchemaType.SealedChoice].indexOf(schema.type) >= 0) {
+                ret += '.ToPtr()'
+            } else {
+                const PTR_CONVERTS = {
+                    string: 'StringPtr',
+                    bool: 'BoolPtr',
+                    'time.Time': 'TimePtr',
+                    int32: 'Int32Ptr',
+                    int64: 'Int64Ptr',
+                    float32: 'Float32Ptr',
+                    float64: 'Float64Ptr'
+                }
+                ret = `to.${PTR_CONVERTS[goType]}(${ret})`
             }
-
-            const PTR_CONVERTS = {
-                string: 'StringPtr',
-                bool: 'BoolPtr',
-                'time.Time': 'TimePtr',
-                int32: 'Int32Ptr',
-                int64: 'Int64Ptr',
-                float32: 'Float32Ptr',
-                float64: 'Float64Ptr'
-            }
-            ret = `to.${PTR_CONVERTS[goType]}(${ret})`
         }
 
         return ret
