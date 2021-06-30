@@ -67,6 +67,7 @@ class GoTestData extends TestGroup {
 
 class GoExampleModel extends ExampleModel {
     opName: string
+    isLRO: boolean
     methodParametersOutput: string
     clientParametersOutput: string
     returnInfo: string[]
@@ -191,7 +192,11 @@ class TestGenerator {
                 const op = example.operation
                 example.opName = op.language.go.name
                 if (isLROOperation(op as any)) {
-                    example.opName = op.language.go.protocolNaming.internalMethod
+                    // example.opName = op.language.go.protocolNaming.internalMethod
+                    example.opName = 'Begin' + example.opName
+                    example.isLRO = true
+                } else {
+                    example.isLRO = false
                 }
                 example.methodParametersOutput = getAPIParametersSig(op, this.importManager)
                     .map(([paramName, typeName]) => {
