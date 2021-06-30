@@ -1,4 +1,5 @@
 import * as _ from 'lodash'
+import * as child_process from 'child_process'
 import {
     AnySchema,
     ArraySchema,
@@ -143,5 +144,9 @@ export class Helper {
             return schema.choices[0]
         }
         throw `${schema.language.default.name} has no choices!`
+    }
+
+    public static execSync(command: string) {
+        child_process.execSync(command)
     }
 }

@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"testing"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/to"
 	"golang.org/x/net/http2"
 )
+{{imports}}
 
 const (
 	mockHost = "https://localhost:8443"
@@ -32,18 +32,25 @@ func Test{{scenario.name}}(t *testing.T) {
 {% for example in scenario.examples %}
     // From example {{example.name}}
 	{%- if loop.first %}
-	defer func() { recover() }()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatal("stacktrace from panic: \n" + string(debug.Stack()))
+		}
+	}()
 	client := New{{example.operationGroup.language.go.name}}Client({{example.clientParametersOutput}})
 	{%- endif %}
 	{%- if example.returnInfo.length == 2 %}
 	_, err {% if loop.first %}:{% endif %}= client.{{example.opName}}({{example.methodParametersOutput}})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	{%- else %}
 	client.{{example.opName}}({{example.methodParametersOutput}})
 	{%- endif %}
 {% endfor %}
+{%- if scenario.examples|length <=0 %}
+	t.Skip("Warning: No test steps for this operation!")
+{%- endif %}
 }
 {% endfor %}
 

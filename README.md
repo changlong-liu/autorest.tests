@@ -4,11 +4,15 @@ Generate *.md config files in Azure REST API specification:
 
 https://github.com/Azure/azure-rest-api-specs
 
-## How to Generate Test (TODO)
+## How to Generate Test (GoLang)
 
-    autorest .. 
+    autorest --version=3.2.1 --use=. d:\projects\codegen\azure-rest-api-specs\specification\agrifood\resource-manager\readme.md --use=@autorest/go@4.0.0-preview.20 --file-prefix="zz_generated_" --track2 --go --output-folder=D:\projects\codegen\generated\azure-sdk-for-go\armagrifood --debug
 
-``` yaml
+``` yaml $(go)
+clear-output-folder: false
+```
+
+``` yaml $(go)
 
 az:
   tests: true
@@ -49,11 +53,14 @@ pipeline:
         scope: scope-tests/emitter
     go-linter:
         input:
+            - go-tester
             - tests/emitter
     # go/emitter:
     #     input: 
     #         - test-modeler
     #         - go-tester
+    go/emitter:
+        output-artifact: source-file-go-tester
 
 
 # modelerfour:
@@ -69,6 +76,12 @@ scope-tests/emitter:
   output-uri-expr: $key
 
   output-artifact: source-file-go-tester
+```
+
+``` yaml $(go) && $(generate-sdk)
+pipeline:
+    go/emitter:
+        output-artifact: source-file-go
 ```
 
 ``` yaml $(csharp)

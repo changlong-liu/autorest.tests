@@ -62,6 +62,7 @@ export async function processRequest(host: Host): Promise<void> {
 
 class GoTestData extends TestGroup {
     packageName: string
+    imports: string
 }
 
 class GoExampleModel extends ExampleModel {
@@ -76,7 +77,7 @@ function getAPIParametersSig(op: any, imports: ImportManager): Array<[string, st
     const methodParams = getMethodParameters(op)
     const params = new Array<[string, string]>()
     if (!isPageableOperation(op) || isLROOperation(op)) {
-        imports.add('context')
+        // imports.add('context')       // comment out since has been envolved in .njk
         params.push(['ctx', 'context.Context'])
     }
     for (const methodParam of values(methodParams)) {
@@ -91,7 +92,7 @@ function getClientParametersSig(
     imports: ImportManager
 ): Array<[string, string]> {
     const params = []
-    imports.add('armcore')
+    // imports.add('armcore')       // comment out since has been envolved in .njk
     params.push(['con', '*armcore.Connection'])
 
     for (const parameter of values((group.language.go?.clientParams || []) as Parameter[])) {
@@ -180,8 +181,10 @@ class TestGenerator {
         public codeModel: TestCodeModel,
         public config: Record<string, any>
     ) {}
+    importManager: ImportManager
 
     public GetMockRenderData(testGroup: GoTestData) {
+        this.importManager = new ImportManager()
         testGroup.packageName = this.codeModel.language.go.packageName
         for (const scenario of testGroup.scenarios) {
             for (const example of scenario.examples as GoExampleModel[]) {
@@ -190,7 +193,7 @@ class TestGenerator {
                 if (isLROOperation(op as any)) {
                     example.opName = op.language.go.protocolNaming.internalMethod
                 }
-                example.methodParametersOutput = getAPIParametersSig(op, new ImportManager())
+                example.methodParametersOutput = getAPIParametersSig(op, this.importManager)
                     .map(([paramName, typeName]) => {
                         if (paramName === 'ctx') {
                             return 'ctx'
@@ -208,7 +211,7 @@ class TestGenerator {
                     .join(',\n')
                 example.clientParametersOutput = getClientParametersSig(
                     example.operationGroup,
-                    new ImportManager()
+                    this.importManager
                 )
                     .map(([paramName, typeName]) => {
                         if (paramName === 'con') {
@@ -228,6 +231,7 @@ class TestGenerator {
                 example.returnInfo = generateReturnsInfo(op, 'op')
             }
         }
+        testGroup.imports = this.importManager.text()
     }
 
     private GetLanguageName(meta: any): string {
@@ -297,25 +301,37 @@ class TestGenerator {
         if (schema.type === SchemaType.Constant || goType === 'string') {
             ret = `"${Helper.escapeString(rawValue)}"`
         } else if (goType === 'time.Time') {
+            this.importManager.add('time')
             ret = `func() time.Time { t, _ := time.Parse(time.RFC3339, "${rawValue}"); return t}()`
+        } else if (goType === 'map[string]interface{}') {
+            ret = `map[string]interface{}{\n`
+            for (const [key, value] of Object.entries(rawValue)) {
+                ret += `"${key}": \`${JSON.stringify(value)}\`,\n`
+            }
+            ret += '}'
         }
 
         if (isPtr) {
+            const PTR_CONVERTS = {
+                string: 'StringPtr',
+                bool: 'BoolPtr',
+                'time.Time': 'TimePtr',
+                int32: 'Int32Ptr',
+                int64: 'Int64Ptr',
+                float32: 'Float32Ptr',
+                float64: 'Float64Ptr'
+            }
+
             if (schema.type === SchemaType.Constant) {
                 ret = `to.StringPtr(${ret})`
+                this.importManager.add('github.com/Azure/azure-sdk-for-go/sdk/to')
             } else if ([SchemaType.Choice, SchemaType.SealedChoice].indexOf(schema.type) >= 0) {
                 ret += '.ToPtr()'
-            } else {
-                const PTR_CONVERTS = {
-                    string: 'StringPtr',
-                    bool: 'BoolPtr',
-                    'time.Time': 'TimePtr',
-                    int32: 'Int32Ptr',
-                    int64: 'Int64Ptr',
-                    float32: 'Float32Ptr',
-                    float64: 'Float64Ptr'
-                }
+            } else if (Object.prototype.hasOwnProperty.call(PTR_CONVERTS, goType)) {
                 ret = `to.${PTR_CONVERTS[goType]}(${ret})`
+                this.importManager.add('github.com/Azure/azure-sdk-for-go/sdk/to')
+            } else {
+                ret = '&' + ret
             }
         }
 
