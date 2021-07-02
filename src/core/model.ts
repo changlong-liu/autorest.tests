@@ -174,13 +174,13 @@ export class TestScenario {
     }
 }
 
-export class Tests {
+export class SwaggerTests {
     mockTests: Array<TestGroup> = []
     scenarioTests: Array<TestGroup> = []
 }
 
 export interface TestCodeModel extends CodeModel {
-    tests?: Tests
+    swaggerTests?: SwaggerTests
 }
 
 export class TestCodeModel {
@@ -202,9 +202,9 @@ export class TestCodeModel {
                                 parameter,
                                 parametersInExample[dotPath]
                             )
-                            if (parameter.implementation == ImplementationLocation.Method) {
+                            if (parameter.implementation === ImplementationLocation.Method) {
                                 exampleModel.methodParameters.push(exampleParameter)
-                            } else if (parameter.implementation == ImplementationLocation.Client) {
+                            } else if (parameter.implementation === ImplementationLocation.Client) {
                                 exampleModel.clientParameters.push(exampleParameter)
                             } else {
                                 //
@@ -233,8 +233,8 @@ export class TestCodeModel {
     }
 
     public initiateTests() {
-        if (!this.codeModel.tests) {
-            this.codeModel.tests = new Tests()
+        if (!this.codeModel.swaggerTests) {
+            this.codeModel.swaggerTests = new SwaggerTests()
         }
     }
 
@@ -254,6 +254,6 @@ export class TestCodeModel {
                 testGroup.scenarios.push(testScenario)
             })
         })
-        this.codeModel.tests.mockTests.push(testGroup)
+        this.codeModel.swaggerTests.mockTests.push(testGroup)
     }
 }

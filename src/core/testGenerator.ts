@@ -19,7 +19,7 @@ export abstract class TestGenerator {
     abstract GenMockRenderData(testGroup: TestGroup)
 
     public async GenerateMockTest(templateFile: string) {
-        for (const testGroup of this.codeModel.tests.mockTests) {
+        for (const testGroup of this.codeModel.swaggerTests.mockTests) {
             //Prepare for render data as GoTestGroup
             this.GenMockRenderData(testGroup)
 
