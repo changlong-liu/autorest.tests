@@ -1,0 +1,9 @@
+{
+    "tool": "Credential Scanner",
+    "suppressions": [
+      {
+        "placeholder": "abc@123",
+        "_justification": "a sample for password field in swagger json file"
+      }
+    ]
+}
