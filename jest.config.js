@@ -14,13 +14,7 @@ module.exports = {
             tsconfig: 'tsconfig.json'
         }
     },
-    testMatch: [
-        'test/**/*.ts',
-        '**/test/**/*.ts',
-        '!**/test/**/*.d.ts',
-        '!**/test/**/test-helper.ts',
-        '!**/test/**/syntax.ts'
-    ],
+    testMatch: ['test/**/*.ts', '**/test/**/*.ts', '!**/test/**/*.d.ts', '!**/test/**/tools.ts'],
     verbose: true,
     testTimeout: 300000
 }

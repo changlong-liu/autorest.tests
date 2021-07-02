@@ -1,5 +1,7 @@
 import * as _ from 'lodash'
 import * as child_process from 'child_process'
+import * as fs from 'fs'
+import * as path from 'path'
 import {
     ChoiceSchema,
     CodeModel,
@@ -139,5 +141,21 @@ export class Helper {
 
     public static execSync(command: string) {
         child_process.execSync(command)
+    }
+
+    public static deleteFolderRecursive(target) {
+        if (fs.existsSync(target)) {
+            fs.readdirSync(target).forEach((file, _) => {
+                const curPath = path.join(target, file)
+                if (fs.lstatSync(curPath).isDirectory()) {
+                    // recurse
+                    this.deleteFolderRecursive(curPath)
+                } else {
+                    // delete file
+                    fs.unlinkSync(curPath)
+                }
+            })
+            fs.rmdirSync(target)
+        }
     }
 }
