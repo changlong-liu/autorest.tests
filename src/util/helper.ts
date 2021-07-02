@@ -1,22 +1,13 @@
 import * as _ from 'lodash'
 import * as child_process from 'child_process'
 import {
-    AnySchema,
-    ArraySchema,
     ChoiceSchema,
-    ChoiceValue,
     CodeModel,
     ComplexSchema,
-    ConstantSchema,
-    DictionarySchema,
     ObjectSchema,
     Operation,
-    OperationGroup,
     Parameter,
     Property,
-    Schema,
-    SchemaType,
-    SealedChoiceSchema,
     VirtualParameter,
     codeModelSchema,
     isVirtualParameter

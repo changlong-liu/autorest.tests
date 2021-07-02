@@ -3,14 +3,17 @@ import {
     CodeModel,
     ComplexSchema,
     DictionarySchema,
+    ImplementationLocation,
     Languages,
     ObjectSchema,
     Operation,
     OperationGroup,
     Parameter,
     Schema,
+    SchemaResponse,
     SchemaType
 } from '@azure-tools/codemodel'
+
 import { Helper } from '../util/helper'
 
 export enum ExtensionName {
@@ -155,7 +158,7 @@ export class ExampleModel {
  */
 export class TestGroup {
     name: string
-    properties: Record<string, any> = {} //TODO: setup, cleanup, env
+    properties: Record<string, any> = {} //TODO: setup/cleanup/env with oav
     scenarios: Array<TestScenario> = []
     public constructor(name: string) {
         this.name = name
@@ -164,18 +167,93 @@ export class TestGroup {
 
 export class TestScenario {
     name: string
-    properties: Record<string, any> = {} //TODO: setup, cleanup, env
+    properties: Record<string, any> = {} //TODO: setup/cleanup/env with oav
     examples: Array<ExampleModel> = []
     public constructor(name: string) {
         this.name = name
     }
 }
 
-export class TestModel {
+export class Tests {
     mockTests: Array<TestGroup> = []
     scenarioTests: Array<TestGroup> = []
 }
 
 export interface TestCodeModel extends CodeModel {
-    testModel: TestModel
+    tests?: Tests
+}
+
+export class TestCodeModel {
+    public constructor(public codeModel: TestCodeModel) {}
+
+    public async genExampleModels() {
+        this.codeModel.operationGroups.forEach((operationGroup) => {
+            operationGroup.operations.forEach((operation) => {
+                for (const [exampleName, rawValue] of Object.entries(
+                    operation.extensions?.[ExtensionName.xMsExamples] ?? {}
+                )) {
+                    const exampleExtension = rawValue as ExampleExtension
+                    const parametersInExample = exampleExtension.parameters
+                    const exampleModel = new ExampleModel(exampleName, operation, operationGroup)
+                    for (const parameter of Helper.allParameters(operation)) {
+                        const dotPath = Helper.getFlattenedNames(parameter).join('.')
+                        if (Helper.isPathDefined(parametersInExample, dotPath)) {
+                            const exampleParameter = new ExampleParameter(
+                                parameter,
+                                parametersInExample[dotPath]
+                            )
+                            if (parameter.implementation == ImplementationLocation.Method) {
+                                exampleModel.methodParameters.push(exampleParameter)
+                            } else if (parameter.implementation == ImplementationLocation.Client) {
+                                exampleModel.clientParameters.push(exampleParameter)
+                            } else {
+                                //
+                            }
+                        }
+                    }
+
+                    for (const [statusCode, response] of Object.entries(
+                        exampleExtension.responses
+                    )) {
+                        const exampleExtensionResponse = response as ExampleExtensionResponse
+                        const schemaResponse = operation.responses[0] as SchemaResponse
+                        exampleModel.responses[statusCode] = ExampleResponse.createInstance(
+                            exampleExtensionResponse,
+                            schemaResponse.schema,
+                            schemaResponse.language
+                        )
+                    }
+
+                    operation.extensions[ExtensionName.xMsExampleModels] =
+                        operation.extensions[ExtensionName.xMsExampleModels] || {}
+                    operation.extensions[ExtensionName.xMsExampleModels][exampleName] = exampleModel
+                }
+            })
+        })
+    }
+
+    public initiateTests() {
+        if (!this.codeModel.tests) {
+            this.codeModel.tests = new Tests()
+        }
+    }
+
+    public async genMockTests() {
+        this.initiateTests()
+        const testGroup = new TestGroup('mock')
+        this.codeModel.operationGroups.forEach((operationGroup) => {
+            operationGroup.operations.forEach((operation) => {
+                const testScenario = new TestScenario(
+                    operationGroup.language.default.name + '_' + operation.language.default.name
+                )
+                for (const [_, exampleModel] of Object.entries(
+                    operation.extensions?.[ExtensionName.xMsExampleModels] ?? {}
+                )) {
+                    testScenario.examples.push(exampleModel as ExampleModel)
+                }
+                testGroup.scenarios.push(testScenario)
+            })
+        })
+        this.codeModel.tests.mockTests.push(testGroup)
+    }
 }

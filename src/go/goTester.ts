@@ -3,64 +3,35 @@
  *  Licensed under the MIT License. See License.txt in the project root for license output.pushrmation.
  *--------------------------------------------------------------------------------------------*/
 
-import * as nunjucks from 'nunjucks'
-import * as path from 'path'
 import {
     ArraySchema,
     ChoiceSchema,
-    CodeModel,
     DictionarySchema,
-    ImplementationLocation,
     Metadata,
-    Operation,
-    OperationGroup,
-    Parameter,
     Schema,
-    SchemaResponse,
     SchemaType,
-    SealedChoiceSchema,
     codeModelSchema
 } from '@azure-tools/codemodel'
-import {
-    ExampleExtension,
-    ExampleExtensionResponse,
-    ExampleModel,
-    ExampleParameter,
-    ExampleResponse,
-    ExampleValue,
-    ExtensionName,
-    TestCodeModel,
-    TestGroup,
-    TestModel,
-    TestScenario
-} from '../model/testModel'
+import { ExampleModel, ExampleValue, TestCodeModel, TestGroup } from '../core/model'
 import { Helper } from '../util/helper'
 import { Host, startSession } from '@azure-tools/autorest-extension-base'
 import { ImportManager } from '@autorest/go/dist/generator/imports'
-import {
-    formatParameterTypeName,
-    getMethodParameters,
-    sortParametersByRequired
-} from '@autorest/go/dist/generator/helpers'
-import { formatWithOptions } from 'util'
-import {
-    getResponse,
-    isLROOperation,
-    isPageableOperation,
-    isSchemaResponse
-} from '@autorest/go/dist/common/helpers'
-import { values } from '@azure-tools/linq'
+import { TestGenerator } from '../core/testGenerator'
+import { generateReturnsInfo, getAPIParametersSig, getClientParametersSig } from './codegenBridge'
+import { isLROOperation } from '@autorest/go/dist/common/helpers'
 
 export async function processRequest(host: Host): Promise<void> {
     const session = await startSession<TestCodeModel>(host, {}, codeModelSchema)
     const config = await session.getValue('')
-    const generator = await new TestGenerator(host, session.model, config)
-    await generator.GenerateMockTest()
+    const generator = await new GoTestGenerator(host, session.model, config)
+    await generator.GenerateMockTest('mockTest.go.njk')
     await Helper.outputToModelerfour(host, session)
-    await Helper.dumpCodeModel(host, session, 'go-tester.yaml')
+    if (session.getValue('debug', false)) {
+        await Helper.dumpCodeModel(host, session, 'go-tester.yaml')
+    }
 }
 
-class GoTestData extends TestGroup {
+class GoTestGroup extends TestGroup {
     packageName: string
     imports: string
 }
@@ -72,119 +43,16 @@ class GoExampleModel extends ExampleModel {
     clientParametersOutput: string
     returnInfo: string[]
 }
-
-// homo structureed with getAPIParametersSig() in autorest.go
-function getAPIParametersSig(op: any, imports: ImportManager): Array<[string, string]> {
-    const methodParams = getMethodParameters(op)
-    const params = new Array<[string, string]>()
-    if (!isPageableOperation(op) || isLROOperation(op)) {
-        // imports.add('context')       // comment out since has been envolved in .njk
-        params.push(['ctx', 'context.Context'])
-    }
-    for (const methodParam of values(methodParams)) {
-        params.push([methodParam.language.go.name, formatParameterTypeName(methodParam)])
-    }
-    return params
-}
-
-// homo structured with logic in generateOperations() in autorest.go
-function getClientParametersSig(
-    group: OperationGroup,
-    imports: ImportManager
-): Array<[string, string]> {
-    const params = []
-    // imports.add('armcore')       // comment out since has been envolved in .njk
-    params.push(['con', '*armcore.Connection'])
-
-    for (const parameter of values((group.language.go?.clientParams || []) as Parameter[])) {
-        params.push([parameter.language.go.name, formatParameterTypeName(parameter as any)])
-    }
-    return params
-}
-
-function isMultiRespOperation(op: Operation): boolean {
-    // treat LROs as single-response ops
-    if (!op.responses || op.responses.length === 1 || isLROOperation(op as any)) {
-        return false
-    }
-    // count the number of distinct schemas returned by this operation
-    const schemaResponses = new Array<SchemaResponse>()
-    for (const response of values(op.responses)) {
-        // perform the comparison by name as some responses have different objects for the same underlying response type
-        if (
-            isSchemaResponse(response as any) &&
-            !values(schemaResponses)
-                .where(
-                    (sr) =>
-                        sr.schema.language.go?.name ===
-                        (response as SchemaResponse).schema.language.go?.name
-                )
-                .any()
-        ) {
-            schemaResponses.push(response as any)
-        }
-    }
-    return schemaResponses.length > 1
-}
-
-// homo structured with generateReturnsInfo() in autorest.go
-function generateReturnsInfo(op: Operation, apiType: 'api' | 'op' | 'handler'): string[] {
-    if (!op.responses) {
-        return ['*http.Response', 'error']
-    }
-    if (isMultiRespOperation(op)) {
-        return ['interface{}', 'error']
-    }
-    const schemaResponse = getResponse(op as any)
-    let returnType = '*http.Response'
-    if (isLROOperation(op as any)) {
-        switch (apiType) {
-            case 'handler':
-                // we only have a handler for operations that return a schema
-                returnType = schemaResponse!.schema.language.go!.responseType.name
-                break
-            case 'api':
-                returnType = 'HTTPPollerResponse'
-                if (schemaResponse !== undefined) {
-                    returnType = schemaResponse.schema.language.go!.lroResponseType.language.go!
-                        .name
-                }
-                break
-            case 'op':
-                returnType = '*azcore.Response'
-                break
-        }
-    } else if (isPageableOperation(op as any)) {
-        switch (apiType) {
-            case 'handler':
-                // pageable operations always return a schema
-                returnType = schemaResponse!.schema.language.go!.responseType.name
-                break
-            case 'api':
-            case 'op':
-                // pager operations don't return an error
-                return [op.language.go!.pageableType.name]
-        }
-    } else if (schemaResponse !== undefined) {
-        // simple schema response
-        returnType = schemaResponse.schema.language.go!.responseType.name
-    } else if (op.language.go!.headAsBoolean === true) {
-        // NOTE: this case must come after the hasSchemaResponse() check to properly handle
-        //       the intersection of head-as-boolean with modeled response headers
-        return ['BooleanResponse', 'error']
-    }
-    return [returnType, 'error']
-}
-
-class TestGenerator {
-    public constructor(
-        public host: Host,
-        public codeModel: TestCodeModel,
-        public config: Record<string, any>
-    ) {}
+class GoTestGenerator extends TestGenerator {
     importManager: ImportManager
 
-    public GetMockRenderData(testGroup: GoTestData) {
+    public GetMockTestFilename(testGroup: TestGroup) {
+        return `${testGroup.name}_test.go`
+    }
+    public GetLanguageName(meta: any): string {
+        return (meta as Metadata).language.go.name
+    }
+    public GenMockRenderData(testGroup: GoTestGroup) {
         this.importManager = new ImportManager()
         testGroup.packageName = this.codeModel.language.go.packageName
         for (const scenario of testGroup.scenarios) {
@@ -237,10 +105,6 @@ class TestGenerator {
             }
         }
         testGroup.imports = this.importManager.text()
-    }
-
-    private GetLanguageName(meta: any): string {
-        return (meta as Metadata).language.go.name
     }
 
     public ExampleValueToString(exampleValue: ExampleValue, isPtr: boolean | undefined): string {
@@ -341,21 +205,5 @@ class TestGenerator {
         }
 
         return ret
-    }
-
-    public async GenerateMockTest() {
-        for (const testGroup of this.codeModel.testModel.mockTests) {
-            //Prepare for render data as GoTestData
-            this.GetMockRenderData(testGroup as GoTestData)
-
-            // Render to template
-            const tmplPath = path.relative(
-                process.cwd(),
-                path.join(`${__dirname}`, '../../src/template/mockTest.go.njk')
-            )
-            nunjucks.configure({ autoescape: false })
-            const output = nunjucks.render(tmplPath, testGroup)
-            this.host.WriteFile(`${testGroup.name}_test.go`, output, undefined)
-        }
     }
 }

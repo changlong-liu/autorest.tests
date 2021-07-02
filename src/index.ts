@@ -4,9 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { AutoRestExtension } from '@azure-tools/autorest-extension-base'
-import { processRequest as goLinter } from './plugin/goLinter'
-import { processRequest as goTester } from './plugin/goTester'
-import { processRequest as testModeler } from './plugin/testModeler'
+import { processRequest as goLinter } from './go/goLinter'
+import { processRequest as goTester } from './go/goTester'
+import { processRequest as testModeler } from './core/testModeler'
 
 export type LogCallback = (message: string) => void
 export type FileCallback = (path: string, rows: string[]) => void
